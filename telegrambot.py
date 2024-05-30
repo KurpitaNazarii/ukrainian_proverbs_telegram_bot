@@ -64,35 +64,29 @@ db = Database()
 router = Router()
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-PAGE_SIZE = 7  # Number of categories per page
+PAGE_SIZE = 7
 
 
 async def choose_category(message: Message, page: int = 1,
                           call: CallbackQuery = None):
-    # Calculate the offset for the query
     offset = (page - 1) * PAGE_SIZE
-    # Query to fetch categories with pagination
     categories = db.select_all('SELECT id, name FROM category LIMIT ? OFFSET ?',
                                PAGE_SIZE, offset)
     builder = InlineKeyboardBuilder()
-    # Add category buttons
     for category_id, category_name in categories:
         builder.add(InlineKeyboardButton(text=category_name,
                                          callback_data=f'category:{category_id}'))
-    # Check if there are more pages
     if db.select_one('SELECT COUNT(*) FROM category')[0] > page * PAGE_SIZE:
         builder.add(InlineKeyboardButton(text='Далі...',
                                          callback_data=f'page:{page + 1}'))
-    # Add a 'Previous' button if it's not the first page
     if page > 1:
         builder.add(InlineKeyboardButton(text='Назад',
                                          callback_data=f'page:{page - 1}'))
-    builder.adjust(1)  # Adjust the keyboard layout to have 2 buttons per row
-    # Edit the message if it's from a callback, otherwise send a new message
+    builder.adjust(1)
     if call:
         await call.message.edit_text('Оберіть категорію:',
                                      reply_markup=builder.as_markup())
-        await call.answer()  # Stop the loading spinner on the button
+        await call.answer()
     else:
         await message.answer('Оберіть категорію:',
                              reply_markup=builder.as_markup())
@@ -101,24 +95,17 @@ async def choose_category(message: Message, page: int = 1,
 def generate_groups(verbs, group_size):
     if group_size < 1:
         raise ValueError("Group size must be at least 1")
-
-    # Generate all possible unique combinations of the specified group size
     all_combinations = list(combinations(verbs, group_size))
-    random.shuffle(
-        all_combinations)  # Shuffle the combinations to add randomness to the order
-
-    # Convert tuples to comma-separated strings
+    random.shuffle(all_combinations)
     groups = [", ".join(comb) for comb in all_combinations]
-
     return groups
 
 
-# Handler for navigation
 @router.callback_query(F.data.startswith('page:'))
 async def handle_page_switch(callback: CallbackQuery):
     page = int(callback.data.split(':')[1])
     await choose_category(callback.message, page, callback)
-    await callback.answer()  # This is necessary to stop the loading animation
+    await callback.answer()
 
 
 @router.message(CommandStart())
@@ -191,16 +178,11 @@ async def for_category(callback: CallbackQuery, state: FSMContext):
 
 
 def compare_strings(str1, str2):
-    # Define a function to clean the strings
     def clean_string(s):
-        # Remove punctuation, dashes, and convert to lowercase
         return re.sub(r'[\W_]', '', s).lower()
 
-    # Clean both strings
     cleaned_str1 = clean_string(str1)
     cleaned_str2 = clean_string(str2)
-
-    # Compare the cleaned strings
     return cleaned_str1 == cleaned_str2
 
 
@@ -310,7 +292,6 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(f"Варіанти відповідей:\n _{new_options}_",
                                   reply_markup=reply_markup,
                                   parse_mode='MarkdownV2')
-    # Store data in state
     await state.update_data(correct_description=correct_description,
                             category_id=category_id,
                             used_proverb_name=quiz_proverb[1])
@@ -391,7 +372,6 @@ async def check_answer(message: Message, state: FSMContext):
                                text=f"Варіанти відповідей:\n _{new_options}_",
                                reply_markup=reply_markup,
                                parse_mode='MarkdownV2')
-        # Store data in state
         await state.update_data(correct_description=correct_description,
                                 category_id=category_id,
                                 used_proverb_name=quiz_proverb[1])
@@ -412,10 +392,9 @@ def generate_quiz_markup(options_len):
     builder = ReplyKeyboardBuilder()
     for option in range(0, options_len):
         builder.add(KeyboardButton(text=options[option]))
-    # Add control buttons with specific row setting
     builder.add(KeyboardButton(text="Завершити"),
                 KeyboardButton(text="Обрати іншу категорію"))
-    builder.adjust(2, 2, 2)  # Set one button per row for options if needed
+    builder.adjust(2, 2, 2)
     return builder.as_markup(one_time_keyboard=True,
                              input_field_placeholder='Оберіть варіант відповіді',
                              resize_keyboard=True)
@@ -430,8 +409,7 @@ async def start_quiz(message: Message, state: FSMContext):
 @router.callback_query(QuizVerb.choosing_category)
 async def process_category(callback: CallbackQuery, state: FSMContext):
     category_id = int(callback.data.removeprefix('category:'))
-    category_name = \
-        db.select_one('SELECT name FROM category WHERE id = ?', category_id)[0]
+    category_name = db.select_one('SELECT name FROM category WHERE id = ?', category_id)[0]
     await callback.message.edit_text('Обрано категорію: ' + category_name)
     await state.update_data(correct_answers=0)
     proverbs = db.select_all(
@@ -451,7 +429,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     number = correct_verb_list[2]
     gender = correct_verb_list[3]
     tense = correct_verb_list[4]
-    number_of_correct_verbs = 1  # len(correct_verb)
+    number_of_correct_verbs = 1
     random_verbs = db.select_all(
         'SELECT DISTINCT word.value FROM word JOIN proverb ON proverb_id = proverb.id '
         "WHERE word.pos = 'VERB' AND word.proverb_id != ? AND word.aspect = ? AND word.number = ? AND word.gender = ? "
@@ -468,13 +446,11 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     for old, new in replace_dict.items():
         proverb = proverb.replace(old, new)
     for verb in correct_verb_list:
-        # Use a regular expression to replace the verb in a case-insensitive manner
         proverb = re.sub(r'\b' + re.escape(verb) + r'\b', '──────', proverb,
                          flags=re.IGNORECASE)
     await callback.message.answer(f"Прислів'я/Приказка:\n *{proverb}*",
                                   reply_markup=reply_markup,
                                   parse_mode='MarkdownV2')
-    # Store data in state
     await state.update_data(correct_verbs=correct_verb, category_id=category_id,
                             used_proverb_value=quiz_proverb_value)
     await state.set_state(QuizVerb.answering_question)
@@ -533,7 +509,7 @@ async def check_answer(message: Message, state: FSMContext):
         number = correct_verb_list[2]
         gender = correct_verb_list[3]
         tense = correct_verb_list[4]
-        number_of_correct_verbs = 1  # len(correct_verb)
+        number_of_correct_verbs = 1
         random_verbs = db.select_all(
             'SELECT DISTINCT word.value FROM word JOIN proverb ON proverb_id = proverb.id '
             "WHERE word.pos = 'VERB' AND word.proverb_id != ? AND word.aspect = ? AND word.number = ? AND word.gender "
@@ -550,14 +526,12 @@ async def check_answer(message: Message, state: FSMContext):
         for old, new in replace_dict.items():
             proverb = proverb.replace(old, new)
         for verb in correct_verb_list:
-            # Use a regular expression to replace the verb in a case-insensitive manner
             proverb = re.sub(r'\b' + re.escape(verb) + r'\b', '──────', proverb,
                              flags=re.IGNORECASE)
         await bot.send_message(message.chat.id,
                                text=f"Прислів'я/Приказка:\n *{proverb}*",
                                reply_markup=reply_markup,
                                parse_mode='MarkdownV2')
-        # Store data in state
         await state.update_data(correct_verbs=correct_verb,
                                 category_id=category_id,
                                 used_proverb_value=quiz_proverb_value)
@@ -577,11 +551,9 @@ def generate_quiz_verb_markup(options):
     builder = ReplyKeyboardBuilder()
     for option in options:
         builder.add(KeyboardButton(text=option))
-    # Add control buttons with specific row setting
     builder.add(KeyboardButton(text="Завершити"),
                 KeyboardButton(text="Обрати іншу категорію"))
-    builder.adjust(1, 1, 1, 1,
-                   2)  # Set one button per row for options if needed
+    builder.adjust(1, 1, 1, 1, 2)
     return builder.as_markup(one_time_keyboard=True,
                              input_field_placeholder='Оберіть варіант відповіді',
                              resize_keyboard=False)
