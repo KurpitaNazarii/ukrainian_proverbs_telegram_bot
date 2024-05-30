@@ -25,6 +25,25 @@ def get_lemmas(text):
     return lemmas
 
 
+def get_words(text):
+    words = list()
+    for word in tokenize_uk.tokenize_words(text):
+        parsed = analyzer.parse(word)[0]
+        pos = parsed.tag.POS
+        word = word.lower()
+        if pos:
+            if pos == "VERB":
+                aspect = parsed.tag.aspect
+                number = parsed.tag.number
+                person = parsed.tag.person
+                gender = parsed.tag.gender
+                tense = parsed.tag.tense
+                words.append((word, pos, aspect, number, person, gender, tense))
+                continue
+            words.append((word, pos))
+    return words
+
+
 def process_lemmas(text, type, proverb_id):
     all_lemmas = get_lemmas(text)
     unique_lemmas = set(all_lemmas)
@@ -42,9 +61,30 @@ def process_lemmas(text, type, proverb_id):
         db.insert(f'INSERT INTO lemmas_usage VALUES (?, ?, ?, ?)', lemma_id, proverb_id, type, frequency)
 
 
+def process_words(text, type, proverb_id):
+    all_words = get_words(text)
+    unique_words = set(all_words)
+    for word_info in unique_words:
+        word = word_info[0]
+        pos = word_info[1]
+        if pos == "VERB":
+            aspect = word_info[2]
+            number = word_info[3]
+            person = word_info[4]
+            gender = word_info[5]
+            tense = word_info[6]
+            db.insert(
+                f'INSERT INTO word (proverb_id, usage_type, value, pos, aspect, number, person, gender, tense) VALUES '
+                f'(?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                proverb_id, type, word, pos, aspect, number, person, gender, tense)
+        else:
+            db.insert(
+                f'INSERT INTO word (proverb_id, usage_type, value, pos) VALUES (?, ?, ?, ?)', proverb_id, type, word,
+                pos)
+
+
 def process_proverb(proverb, description):
-    print(f'Processing proverb: {proverb}')
-    substring_description = "Синонім. "
+    substring_description = " Синонім. "
     substring_synonyms = "; "
     if substring_description in description:
         parts = description.split(substring_description)
@@ -52,7 +92,6 @@ def process_proverb(proverb, description):
         description = parts[0]
         synonyms = list(synonyms)
         for synonym in synonyms:
-            print(f'Processing synonym: {synonym}')
             process_proverb(synonym, description)
 
     proverb_id = db.insert(f'INSERT INTO proverb (value, description, category_id) VALUES (?, ?, ?)',
@@ -60,6 +99,8 @@ def process_proverb(proverb, description):
 
     process_lemmas(proverb, 'VALUE', proverb_id)
     process_lemmas(description, 'DESCRIPTION', proverb_id)
+    process_words(proverb, 'VALUE', proverb_id)
+    process_words(description, 'DESCRIPTION', proverb_id)
 
 
 if __name__ == '__main__':
@@ -68,10 +109,3 @@ if __name__ == '__main__':
         print(f'Processing category: {category}')
         for proverb, description in proverbs.items():
             process_proverb(proverb, description)
-    all_lemmas_statistics_in_categories = db.select_all(f'SELECT p.category_id, (SELECT name FROM category '
-                                                        f'where id = p.category_id), u.lemma_id, (SELECT value FROM '
-                                                        f'lemma where id = u.lemma_id), sum(u.frequency) as frequency '
-                                                        f'FROM lemmas_usage u JOIN proverb p ON p.id = u.proverb_id '
-                                                        f'where u.usage_type = ? GROUP by p.category_id, u.lemma_id order by category_id, frequency desc', 'VALUE')
-    for row in all_lemmas_statistics_in_categories:
-        db.insert(f'INSERT into category_lemma_statistics VALUES (?, ?, ?, ?, ?)', row[0], row[1], row[2], row[3], row[4])
