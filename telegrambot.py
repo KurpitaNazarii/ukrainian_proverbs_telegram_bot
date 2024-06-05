@@ -84,11 +84,11 @@ async def choose_category(message: Message, page: int = 1,
                                          callback_data=f'page:{page - 1}'))
     builder.adjust(1)
     if call:
-        await call.message.edit_text('Оберіть категорію:',
+        await call.message.edit_text('Оберіть тему:',
                                      reply_markup=builder.as_markup())
         await call.answer()
     else:
-        await message.answer('Оберіть категорію:',
+        await message.answer('Оберіть тему:',
                              reply_markup=builder.as_markup())
 
 
@@ -124,31 +124,31 @@ async def command_get_help(message: Message):
 async def study(message: Message):
     await message.answer(
         'У Вашому доступі є низка вправ для вивчення/запам\'ятовувавння прислів\'їв та приказок. '
-        'Після вибору вправи, необхідно обрати категорію в якій Ви хочете удосконалити свої знання. '
+        'Після вибору вправи необхідно обрати тему, у межах якої Ви хочете удосконалити свої знання паремій. '
         'Оберіть вправу на своїй клавіатурі.', reply_markup=kb.study)
 
 
 @router.message(F.text == 'Допомога')
 async def get_help(message: Message):
     text = (
-        '/start \\- розпочати бота\n/help \\- команда яка викликає це повідомлення\n\n'
+        '/start \\- розпочати роботу бота\n/help \\- команда, яка викликає це повідомлення\n\n'
         '`Навчатися` \\- кнопка для навчання\n'
-        '*Вправа зібрати прислів\'я/приказку* \\- розставити слова у правильному порядку\n'
-        '*Вправа відгадати значення прислів\'я/приказки* \\- обрати на клавіатурі правильне пояснення\n'
-        '*Вправа доповнити прислів\'я/приказку дієсловом* \\- обрати на клавіатурі дієслово, якого не вистачає\n\n'
+        '*Вправа: скласти прислів\'я/приказку* \\- розставити слова у правильному порядку\n'
+        '*Вправа: відгадати значення прислів\'я/приказки* \\- обрати на клавіатурі правильне пояснення\n'
+        '*Вправа: доповнити прислів\'я/приказку дієсловом* \\- обрати на клавіатурі дієслово, якого не вистачає\n\n'
         '`Пошук 🔎`\\- кнопка для пошуку\n'
-        '*за лемою у паремії* \\- пошук за лемою, яка є частиною самого прислів\'я/приказки\n'
+        '*за лемою у паремії* \\- пошук за лемою, яка є частиною прислів\'я/приказки\n'
         '_лема це канонічна форма лексеми\\. Наприклад: "хотіти" лема слів "хочу", "хотіла" і т\\.д\\._\n'
-        '*за лемою у паремії і значенні* \\- пошук за лемою, яка є частиною самого прислів\'я/приказки або пояснення\n'
-        '*за першою літерою паремії* \\- пошук за літерою на яку починається прислів\'я/приказка\n'
-        '*за частинкою у паремії і значенні* \\- пошук за будь\\-яким набором символів у прислів\'ї/приказці або '
-        'поясненні\n'
+        '*за лемою у паремії і тлумаченні* \\- пошук за лемою, яка є частиною самого прислів\'я/приказки або тлумачення\n'
+        '*за першою літерою паремії* \\- пошук за літерою, на яку починається прислів\'я/приказка\n'
+        '*за частинкою у паремії і тлумаченні* \\- пошук за будь\\-яким набором слів, букв у прислів\'ї/приказці або '
+        'тлумаченні\n'
         '_наприклад: за пошуком "берись дру", "сутуж" або "не буде" бот знайде таку паремію "Берись дружно — не буде '
         'сутужно\\."_')
     await message.answer(text, reply_markup=kb.main, parse_mode='MarkdownV2')
 
 
-@router.message(F.text == 'Вправа зібрати прислів\'я/приказку')
+@router.message(F.text == 'Вправа скласти прислів\'я/приказку')
 async def construct_proverb(message: Message, state: FSMContext):
     await choose_category(message)
     await state.set_state(Test.test1)
@@ -159,7 +159,7 @@ async def for_category(callback: CallbackQuery, state: FSMContext):
     category_id = int(callback.data.removeprefix('category:'))
     category_name = \
         db.select_one('SELECT name FROM category WHERE id = ?', category_id)[0]
-    await callback.message.edit_text('Обрано категорію: ' + category_name)
+    await callback.message.edit_text('Обрано тему: ' + category_name)
     await state.update_data(correct_answers=0)
     proverbs = db.select_all('SELECT value FROM proverb WHERE category_id = ?',
                              category_id)
@@ -190,7 +190,7 @@ def compare_strings(str1, str2):
 async def check_proverb(message: Message, state: FSMContext):
     data = await state.get_data()
     correct_proverb = data['correct_proverb']
-    if message.text not in ["Завершити", "Обрати іншу категорію"]:
+    if message.text not in ["Завершити", "Обрати іншу тему"]:
         if compare_strings(message.text, correct_proverb):
             await message.answer("Правильно! 🎉")
             correct_answers = (await state.get_data())['correct_answers']
@@ -219,10 +219,10 @@ async def check_proverb(message: Message, state: FSMContext):
                 db.select_one('SELECT name FROM category WHERE id = ?',
                               category_id))[0]
             await bot.send_message(chat_id,
-                                   text=f'Вітаю! Ви зібрали усі прислів\'я/приказки у категорії: '
+                                   text=f'Вітаю! Ви зібрали усі прислів\'я/приказки з теми: '
                                         f'{category_name}'
                                         f'\nВаш результат: {correct_answers} правильних із {len(used_proverbs)}.'
-                                        f'\nОберіть іншу категорію або завершіть навчання.',
+                                        f'\nОберіть іншу тему або завершіть навчання.',
                                    reply_markup=kb.end_test)
             return
         proverb = random.choice(proverbs)
@@ -237,7 +237,7 @@ async def check_proverb(message: Message, state: FSMContext):
         await state.clear()
         await message.answer('Вправу завершено.', reply_markup=kb.main)
         return
-    elif message.text == 'Обрати іншу категорію':
+    elif message.text == 'Обрати іншу тему':
         await state.clear()
         await choose_category(message)
         await state.set_state(Test.test1)
@@ -255,7 +255,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     category_id = int(callback.data.removeprefix('category:'))
     category_name = \
         db.select_one('SELECT name FROM category WHERE id = ?', category_id)[0]
-    await callback.message.edit_text(f'Обрано категорію: *{category_name}*',
+    await callback.message.edit_text(f'Обрано тему: *{category_name}*',
                                      parse_mode='MarkdownV2')
     await state.update_data(correct_answers=0)
     proverbs = db.select_all(
@@ -302,7 +302,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
 async def check_answer(message: Message, state: FSMContext):
     user_data = await state.get_data()
     correct_description = user_data['correct_description']
-    if message.text not in ["Завершити", "Обрати іншу категорію"]:
+    if message.text not in ["Завершити", "Обрати іншу тему"]:
         if message.text == correct_description:
             await message.answer("Правильно! 🎉")
             correct_answers = (await state.get_data())['correct_answers']
@@ -333,10 +333,10 @@ async def check_answer(message: Message, state: FSMContext):
                 db.select_one('SELECT name FROM category WHERE id = ?',
                               category_id))[0]
             await bot.send_message(chat_id,
-                                   text=f'Вітаю! Ви співставили усі прислів\'я/приказки з їх значеннями у категорії: '
+                                   text=f'Вітаю! Ви співставили усі прислів\'я/приказки з їх тлумаченнями з теми: '
                                         f'{category_name}'
-                                        f'\nТвій результат: {correct_answers} правильних із {proverbs_number}.'
-                                        f'\nОберіть іншу категорію або завершіть навчання.',
+                                        f'\nВаш результат: {correct_answers} правильних із {proverbs_number}.'
+                                        f'\nОберіть іншу тему або завершіть навчання.',
                                    reply_markup=kb.end_test)
             return
         quiz_proverb = random.choice(proverbs)
@@ -380,7 +380,7 @@ async def check_answer(message: Message, state: FSMContext):
         await state.clear()
         await message.answer('Вправу завершено.', reply_markup=kb.main)
         return
-    elif message.text == 'Обрати іншу категорію':
+    elif message.text == 'Обрати іншу тему':
         await state.clear()
         await choose_category(message)
         await state.set_state(Quiz.choosing_category)
@@ -393,7 +393,7 @@ def generate_quiz_markup(options_len):
     for option in range(0, options_len):
         builder.add(KeyboardButton(text=options[option]))
     builder.add(KeyboardButton(text="Завершити"),
-                KeyboardButton(text="Обрати іншу категорію"))
+                KeyboardButton(text="Обрати іншу тему"))
     builder.adjust(2, 2, 2)
     return builder.as_markup(one_time_keyboard=True,
                              input_field_placeholder='Оберіть варіант відповіді',
@@ -410,7 +410,7 @@ async def start_quiz(message: Message, state: FSMContext):
 async def process_category(callback: CallbackQuery, state: FSMContext):
     category_id = int(callback.data.removeprefix('category:'))
     category_name = db.select_one('SELECT name FROM category WHERE id = ?', category_id)[0]
-    await callback.message.edit_text('Обрано категорію: ' + category_name)
+    await callback.message.edit_text('Обрано тему: ' + category_name)
     await state.update_data(correct_answers=0)
     proverbs = db.select_all(
         "SELECT DISTINCT proverb.id, proverb.value FROM proverb JOIN word ON proverb.id = proverb_id WHERE "
@@ -460,7 +460,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
 async def check_answer(message: Message, state: FSMContext):
     user_data = await state.get_data()
     correct_verbs = user_data['correct_verbs']
-    if message.text not in ["Завершити", "Обрати іншу категорію"]:
+    if message.text not in ["Завершити", "Обрати іншу тему"]:
         if message.text == correct_verbs:
             await message.answer("Правильно! 🎉")
             correct_answers = (await state.get_data())['correct_answers']
@@ -491,10 +491,10 @@ async def check_answer(message: Message, state: FSMContext):
                 db.select_one('SELECT name FROM category WHERE id = ?',
                               category_id))[0]
             await bot.send_message(chat_id,
-                                   text=f'Вітаю! Ви дібрали до усіх прислів\'їв/приказок дієлсова у категорії: '
+                                   text=f'Вітаю! Ви дібрали до усіх прислів\'їв/приказок дієслова з теми: '
                                         f'{category_name}'
-                                        f'\nТвій результат: {correct_answers} правильних із {proverbs_number}.'
-                                        f'\nОберіть іншу категорію або завершіть навчання.',
+                                        f'\nВаш результат: {correct_answers} правильних із {proverbs_number}.'
+                                        f'\nОберіть іншу тему або завершіть навчання.',
                                    reply_markup=kb.end_test)
             return
         quiz_proverb = random.choice(proverbs)
@@ -540,7 +540,7 @@ async def check_answer(message: Message, state: FSMContext):
         await state.clear()
         await message.answer('Вправу завершено.', reply_markup=kb.main)
         return
-    elif message.text == 'Обрати іншу категорію':
+    elif message.text == 'Обрати іншу тему':
         await state.clear()
         await choose_category(message)
         await state.set_state(QuizVerb.choosing_category)
@@ -552,7 +552,7 @@ def generate_quiz_verb_markup(options):
     for option in options:
         builder.add(KeyboardButton(text=option))
     builder.add(KeyboardButton(text="Завершити"),
-                KeyboardButton(text="Обрати іншу категорію"))
+                KeyboardButton(text="Обрати іншу тему"))
     builder.adjust(1, 1, 1, 1, 2)
     return builder.as_markup(one_time_keyboard=True,
                              input_field_placeholder='Оберіть варіант відповіді',
@@ -591,7 +591,7 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext):
         await state.set_state(QuizVerb.choosing_category)
 
 
-@router.message(F.text == 'Обрати іншу категорію')
+@router.message(F.text == 'Обрати іншу тему')
 async def change_category_handler(message: Message, state: FSMContext):
     await choose_category(message)
     current_state = await state.get_state()
@@ -734,7 +734,7 @@ async def process_results(message: Message, state: FSMContext):
         proverbs_in_category.append(result)
     for category, proverbs_infos in by_category.items():
         await bot.send_message(chat_id=message.chat.id,
-                               text=f'Категорія: *{category}*',
+                               text=f'Тема: *{category}*',
                                disable_notification=True,
                                parse_mode='MarkdownV2')
         for proverb_info in proverbs_infos:
