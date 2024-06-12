@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS lemmas_usage (
     lemma_id integer not null,
     proverb_id integer not null,
     usage_type varchar(50) not null,
-     frequency integer not null,
     foreign key (lemma_id) references lemma(id),
     foreign key (proverb_id) references proverb(id)
 );
