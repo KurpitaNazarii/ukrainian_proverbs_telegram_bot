@@ -148,7 +148,7 @@ async def get_help(message: Message):
     await message.answer(text, reply_markup=kb.main, parse_mode='MarkdownV2')
 
 
-@router.message(F.text == 'Вправа скласти прислів\'я/приказку')
+@router.message(F.text == 'Вправа: скласти прислів\'я/приказку')
 async def construct_proverb(message: Message, state: FSMContext):
     await choose_category(message)
     await state.set_state(Test.test1)
@@ -244,7 +244,7 @@ async def check_proverb(message: Message, state: FSMContext):
         return
 
 
-@router.message(F.text == 'Вправа відгадати значення прислів\'я/приказки')
+@router.message(F.text == 'Вправа: відгадати значення прислів\'я/приказки')
 async def start_quiz(message: Message, state: FSMContext):
     await choose_category(message)
     await state.set_state(Quiz.choosing_category)
@@ -400,7 +400,7 @@ def generate_quiz_markup(options_len):
                              resize_keyboard=True)
 
 
-@router.message(F.text == 'Вправа доповнити прислів\'я/приказку дієсловом')
+@router.message(F.text == 'Вправа: доповнити прислів\'я/приказку дієсловом')
 async def start_quiz(message: Message, state: FSMContext):
     await choose_category(message)
     await state.set_state(QuizVerb.choosing_category)

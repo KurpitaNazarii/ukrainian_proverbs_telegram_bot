@@ -57,8 +57,7 @@ def process_lemmas(text, type, proverb_id):
         else:
             lemma_id = db.insert(f'INSERT INTO lemma (value, pos) VALUES (?, ?)', lemma, pos)
 
-        frequency = all_lemmas.count(lemma_info)
-        db.insert(f'INSERT INTO lemmas_usage VALUES (?, ?, ?, ?)', lemma_id, proverb_id, type, frequency)
+        db.insert(f'INSERT INTO lemmas_usage VALUES (?, ?, ?)', lemma_id, proverb_id, type)
 
 
 def process_words(text, type, proverb_id):
